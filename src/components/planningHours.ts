@@ -1,5 +1,5 @@
 
-import { fetchTableData, createRecord, updateRecord, DatabaseRecord, ApiResponse } from '../services/databaseApi';
+import { fetchTableData, createRecord, updateRecord, deleteRecord, DatabaseRecord, ApiResponse } from '../services/databaseApi';
 
 export interface PlanningHours extends DatabaseRecord {
   user_id: string;
@@ -50,7 +50,11 @@ export const updatePlanningHours = async (
   try {
     // Get all planning hours to find existing record
     const { data: allHours } = await fetchTableData<PlanningHours[]>('planning_hours');
-    const existingRecord = allHours?.find(
+    if (!allHours) {
+      return { data: null, error: new Error('Failed to fetch planning hours') };
+    }
+    
+    const existingRecord = allHours.find(
       item => 
         item.user_id === userId && 
         item.version_id === versionId &&

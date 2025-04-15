@@ -35,7 +35,11 @@ export const updateWeekHours = async (
   try {
     // Get all week hours to find existing record
     const { data: allHours } = await fetchTableData<WeekHours[]>('week_hours');
-    const existingRecord = allHours?.find(
+    if (!allHours) {
+      return { data: null, error: new Error('Failed to fetch week hours') };
+    }
+    
+    const existingRecord = allHours.find(
       item => 
         item.user_id === userId && 
         item.week_id === weekId &&

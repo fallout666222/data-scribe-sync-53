@@ -57,7 +57,11 @@ export const updateVersionStatus = async (
   try {
     // Check if status already exists
     const { data: existingStatuses } = await fetchTableData<VersionStatus[]>('version_statuses');
-    const existingStatus = existingStatuses?.find(
+    if (!existingStatuses) {
+      return { data: null, error: new Error('Failed to fetch version statuses') };
+    }
+    
+    const existingStatus = existingStatuses.find(
       status => status.user_id === userId && status.version_id === versionId
     );
     

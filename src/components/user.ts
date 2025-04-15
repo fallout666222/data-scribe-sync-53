@@ -1,6 +1,16 @@
 
 import bcrypt from 'bcryptjs';
-import { fetchTableData, createRecord, updateRecord, User, ApiResponse } from '../services/databaseApi';
+import { fetchTableData, createRecord, updateRecord, ApiResponse } from '../services/databaseApi';
+
+export interface User {
+  id: string | number;
+  name: string;
+  login: string;
+  password?: string;
+  department_id?: string;
+  dark_theme?: boolean;
+  language?: string;
+}
 
 export const getUsers = async () => {
   return await fetchTableData<User[]>('users');

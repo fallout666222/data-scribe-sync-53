@@ -94,7 +94,7 @@ app.delete('/api/tables/:tableName/:id', async (req, res) => {
   
   try {
     // Simple validation to prevent SQL injection
-    if (!tableName.match(/^[a-zA-Z0_]+$/)) {
+    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) {
       return res.status(400).json({ error: 'Invalid table name' });
     }
 
@@ -133,4 +133,3 @@ app.post('/api/tables/:tableName', async (req, res) => {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
-

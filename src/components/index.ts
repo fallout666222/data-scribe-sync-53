@@ -28,13 +28,19 @@ export {
 import * as WeekHoursModule from './weekHours';
 export {
   // Re-export only non-duplicate functions from weekHours
+  getWeekPercentagesWithCache,
+  clearWeekHoursCache,
+  clearWeekPercentagesCache
 } from './weekHours';
 
 // Visible Entity operations (clients and media types visibility)
 export * from './visibleEntity';
 
-// Planning Hours operations
-export * from './planningHours';
+// Planning Hours operations - Explicitly export to avoid duplicate PlanningVersion
+export { 
+  getPlanningHours, 
+  updatePlanningHours 
+} from './planningHours';
 
 // Planning Versions operations
 export * from './planningVersions';
