@@ -65,9 +65,7 @@ export const updatePlanningHours = async (
     if (hours === 0) {
       // Delete the record if hours is 0 and record exists
       if (existingRecord) {
-        await fetch(`http://localhost:5000/api/tables/planning_hours/${existingRecord.id}`, {
-          method: 'DELETE',
-        });
+        await deleteRecord('planning_hours', existingRecord.id);
       }
       // If no record exists with 0 hours, nothing to do
       return { data: null, error: null };

@@ -42,8 +42,14 @@ export {
   updatePlanningHours 
 } from './planningHours';
 
-// Planning Versions operations
-export * from './planningVersions';
+// Planning Versions operations - Make sure we're not re-exporting PlanningVersion twice
+export { 
+  getAllPlanningVersions,
+  createPlanningVersion,
+  updatePlanningVersion,
+  deletePlanningVersion,
+  fillActualHours
+} from './planningVersions';
 
 // Version Status operations
 export * from './versionStatus';
@@ -55,3 +61,7 @@ export * from './years';
 // We're choosing the implementations from customWeeks and timesheet over the ones in week and weekHours
 export { getCustomWeeks, createCustomWeek } from './customWeeks';
 export { getWeekHours, updateWeekHours, updateHours } from './timesheet';
+
+// Re-export needed types 
+export type { PlanningVersion } from './planningVersions';
+export type { PlanningHours } from './planningHours';

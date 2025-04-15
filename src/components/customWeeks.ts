@@ -1,5 +1,5 @@
 
-import { fetchTableData, createRecord, DatabaseRecord } from '../services/databaseApi';
+import { fetchTableData, createRecord, DatabaseRecord, ApiResponse } from '../services/databaseApi';
 
 export interface CustomWeek extends DatabaseRecord {
   name: string;
@@ -8,7 +8,7 @@ export interface CustomWeek extends DatabaseRecord {
   required_hours: number;
 }
 
-export const getCustomWeeks = async () => {
+export const getCustomWeeks = async (): Promise<ApiResponse<CustomWeek[]>> => {
   try {
     const result = await fetchTableData<CustomWeek[]>('custom_weeks');
     // Sort by period_from if data exists
@@ -22,10 +22,10 @@ export const getCustomWeeks = async () => {
     return result;
   } catch (error) {
     console.error('Error fetching custom weeks:', error);
-    return { data: null, error };
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error') };
   }
 };
 
-export const createCustomWeek = async (week: Omit<CustomWeek, 'id'>) => {
+export const createCustomWeek = async (week: Omit<CustomWeek, 'id'>): Promise<ApiResponse<CustomWeek>> => {
   return await createRecord<CustomWeek>('custom_weeks', week);
 };
