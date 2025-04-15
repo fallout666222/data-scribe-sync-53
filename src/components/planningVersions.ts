@@ -1,0 +1,63 @@
+
+import { supabase } from '../client';
+
+export const getAllPlanningVersions = async () => {
+  return await supabase.from('planning_versions')
+    .select('*')
+    .order('created_at', { ascending: false });
+};
+
+export const createPlanningVersion = async (
+  name: string,
+  year: string,
+  q1_locked: boolean = false,
+  q2_locked: boolean = false,
+  q3_locked: boolean = false,
+  q4_locked: boolean = false,
+  hidden: boolean = false
+) => {
+  return await supabase.from('planning_versions')
+    .insert({
+      name,
+      year,
+      q1_locked,
+      q2_locked,
+      q3_locked,
+      q4_locked,
+      hidden
+    })
+    .select()
+    .single();
+};
+
+export const updatePlanningVersion = async (
+  id: string,
+  updates: {
+    name?: string;
+    year?: string;
+    q1_locked?: boolean;
+    q2_locked?: boolean;
+    q3_locked?: boolean;
+    q4_locked?: boolean;
+    hidden?: boolean;
+  }
+) => {
+  return await supabase.from('planning_versions')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+};
+
+export const deletePlanningVersion = async (id: string) => {
+  return await supabase.from('planning_versions')
+    .delete()
+    .eq('id', id);
+};
+
+export const fillActualHours = async (versionId: string, year: string) => {
+  return await supabase.rpc('fill_actual_hours', {
+    p_version_id: versionId,
+    p_year: year
+  });
+};
