@@ -1,9 +1,14 @@
 
-import { getDepartments, createDepartment, deleteDepartment } from '../services/databaseApi';
+import { supabase } from '../client';
 
-/**
- * Re-exports the database API functions for departments to maintain compatibility
- * with the existing codebase.
- */
-export { getDepartments, createDepartment, deleteDepartment };
-export type { Department } from '../services/databaseApi';
+export const getDepartments = async () => {
+  return await supabase.from('departments').select('*');
+};
+
+export const createDepartment = async (department: { name: string, description?: string }) => {
+  return await supabase.from('departments').insert(department).select().single();
+};
+
+export const deleteDepartment = async (id: string) => {
+  return await supabase.from('departments').delete().eq('id', id);
+};

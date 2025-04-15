@@ -1,9 +1,10 @@
 
-import { getMediaTypes, createMediaType } from '../services/databaseApi';
+import { supabase } from '../client';
 
-/**
- * Re-exports the database API functions for media types to maintain compatibility
- * with the existing codebase.
- */
-export { getMediaTypes, createMediaType };
-export type { MediaType } from '../services/databaseApi';
+export const getMediaTypes = async () => {
+  return await supabase.from('media_types').select('*');
+};
+
+export const createMediaType = async (mediaType: { name: string, description?: string }) => {
+  return await supabase.from('media_types').insert(mediaType).select().single();
+};

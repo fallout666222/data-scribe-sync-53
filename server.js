@@ -47,7 +47,7 @@ app.get('/api/tables', async (req, res) => {
 app.get('/api/tables/:tableName', async (req, res) => {
   try {
     const { tableName } = req.params;
-    // Simple validation to prevent SQL injection
+    // Simple validation to prevent SQL injection (basic approach)
     if (!tableName.match(/^[a-zA-Z0-9_]+$/)) {
       return res.status(400).json({ error: 'Invalid table name' });
     }
@@ -71,17 +71,9 @@ app.put('/api/tables/:tableName/:id', async (req, res) => {
   const values = [...setEntries.map(([_, value]) => value), id];
   
   try {
-    // Simple validation to prevent SQL injection
-    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) {
-      return res.status(400).json({ error: 'Invalid table name' });
-    }
-
     const query = `UPDATE ${tableName} SET ${setClause} WHERE id = $${values.length}`;
     await pool.query(query, values);
-    
-    // Fetch and return updated record
-    const result = await pool.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
-    res.json(result.rows[0]);
+    res.json({ success: true });
   } catch (err) {
     console.error('Error updating data:', err);
     res.status(500).json({ error: 'Failed to update data' });
@@ -93,11 +85,6 @@ app.delete('/api/tables/:tableName/:id', async (req, res) => {
   const { tableName, id } = req.params;
   
   try {
-    // Simple validation to prevent SQL injection
-    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) {
-      return res.status(400).json({ error: 'Invalid table name' });
-    }
-
     await pool.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
     res.json({ success: true });
   } catch (err) {
@@ -112,11 +99,6 @@ app.post('/api/tables/:tableName', async (req, res) => {
   const newRecord = req.body;
   
   try {
-    // Simple validation to prevent SQL injection
-    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) {
-      return res.status(400).json({ error: 'Invalid table name' });
-    }
-
     const keys = Object.keys(newRecord);
     const values = Object.values(newRecord);
     const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');

@@ -1,19 +1,10 @@
 
-import { fetchTableData, createRecord, updateRecord, deleteRecord, DatabaseRecord, ApiResponse } from '../services/databaseApi';
+import { supabase } from '../client';
 
-export interface PlanningVersion extends DatabaseRecord {
-  name: string;
-  year: string;
-  q1_locked: boolean;
-  q2_locked: boolean;
-  q3_locked: boolean;
-  q4_locked: boolean;
-  hidden: boolean;
-  created_at?: string;
-}
-
-export const getAllPlanningVersions = async (): Promise<ApiResponse<PlanningVersion[]>> => {
-  return await fetchTableData<PlanningVersion[]>('planning_versions');
+export const getAllPlanningVersions = async () => {
+  return await supabase.from('planning_versions')
+    .select('*')
+    .order('created_at', { ascending: false });
 };
 
 export const createPlanningVersion = async (
@@ -24,16 +15,19 @@ export const createPlanningVersion = async (
   q3_locked: boolean = false,
   q4_locked: boolean = false,
   hidden: boolean = false
-): Promise<ApiResponse<PlanningVersion>> => {
-  return await createRecord<PlanningVersion>('planning_versions', {
-    name,
-    year,
-    q1_locked,
-    q2_locked,
-    q3_locked,
-    q4_locked,
-    hidden
-  });
+) => {
+  return await supabase.from('planning_versions')
+    .insert({
+      name,
+      year,
+      q1_locked,
+      q2_locked,
+      q3_locked,
+      q4_locked,
+      hidden
+    })
+    .select()
+    .single();
 };
 
 export const updatePlanningVersion = async (
@@ -47,26 +41,23 @@ export const updatePlanningVersion = async (
     q4_locked?: boolean;
     hidden?: boolean;
   }
-): Promise<ApiResponse<PlanningVersion>> => {
-  return await updateRecord<PlanningVersion>('planning_versions', id, updates);
+) => {
+  return await supabase.from('planning_versions')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
 };
 
-export const deletePlanningVersion = async (id: string): Promise<ApiResponse<void>> => {
-  return await deleteRecord('planning_versions', id);
+export const deletePlanningVersion = async (id: string) => {
+  return await supabase.from('planning_versions')
+    .delete()
+    .eq('id', id);
 };
 
-export const fillActualHours = async (versionId: string, year: string): Promise<ApiResponse<any>> => {
-  try {
-    // This would require a special endpoint in our Express API
-    // For now, we'll return an error
-    return { 
-      data: null, 
-      error: new Error('Function fillActualHours not implemented in the new API') 
-    };
-  } catch (error) {
-    return { 
-      data: null, 
-      error: error instanceof Error ? error : new Error('Unknown error') 
-    };
-  }
+export const fillActualHours = async (versionId: string, year: string) => {
+  return await supabase.rpc('fill_actual_hours', {
+    p_version_id: versionId,
+    p_year: year
+  });
 };
