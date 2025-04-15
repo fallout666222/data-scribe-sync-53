@@ -1,21 +1,41 @@
 
-import { supabase } from '../client';
+import { toast } from "@/components/ui/use-toast";
+
+interface Client {
+  id: string;
+  name: string;
+  client_id?: string;
+  ts_code?: string;
+  description?: string;
+  parent_id?: string | null;
+  agency_id?: string | null;
+  hidden?: boolean;
+  deletion_mark: boolean;
+}
+
+interface ApiResponse<T> {
+  data: T | null;
+  error: { message: string; details?: string } | null;
+}
+
+const API_BASE_URL = 'http://localhost:5000/api';
 
 /**
  * Fetches all active clients from the database.
  * 
  * @returns A promise containing the client data and any error encountered.
  */
-export const getClients = async () => {
+export const getClients = async (): Promise<ApiResponse<Client[]>> => {
   try {
-    const response = await supabase.from('clients').select('*').eq('deletion_mark', false);
+    const response = await fetch(`${API_BASE_URL}/tables/clients?deletion_mark=eq.false`);
     
-    if (response.error) {
-      console.error('Database error fetching clients:', response.error);
-      return { data: null, error: response.error };
+    if (!response.ok) {
+      console.error('API error fetching clients:', response.statusText);
+      return { data: null, error: { message: 'Failed to fetch clients' } };
     }
     
-    return { data: response.data, error: null };
+    const data = await response.json();
+    return { data, error: null };
   } catch (error) {
     console.error('Unexpected error fetching clients:', error);
     return { 
@@ -41,16 +61,23 @@ export const createClient = async (client: {
   parent_id?: string | null,
   agency_id?: string | null,
   hidden?: boolean
-}) => {
+}): Promise<ApiResponse<Client>> => {
   try {
-    const response = await supabase.from('clients').insert(client).select().single();
+    const response = await fetch(`${API_BASE_URL}/tables/clients`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(client),
+    });
 
-    if (response.error) {
-      console.error('Database error creating client:', response.error);
-      return { data: null, error: response.error };
+    if (!response.ok) {
+      console.error('API error creating client:', response.statusText);
+      return { data: null, error: { message: 'Failed to create client' } };
     }
 
-    return { data: response.data, error: null };
+    const data = await response.json();
+    return { data, error: null };
   } catch (error) {
     console.error('Unexpected error creating client:', error);
     return {
@@ -69,7 +96,7 @@ export const createClient = async (client: {
  * @param client - Object containing client properties to update.
  * @returns A promise containing the updated client data and any error encountered.
  */
-export const updateClient = async (id: string, client: any) => {
+export const updateClient = async (id: string, client: any): Promise<ApiResponse<Client>> => {
   try {
     // Convert frontend naming conventions to database naming conventions
     if (client.parentId !== undefined) {
@@ -82,14 +109,23 @@ export const updateClient = async (id: string, client: any) => {
       delete client.agencyId;
     }
     
-    const response = await supabase.from('clients').update(client).eq('id', id).select().single();
+    const response = await fetch(`${API_BASE_URL}/tables/clients/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(client),
+    });
 
-    if (response.error) {
-      console.error(`Database error updating client with ID ${id}:`, response.error);
-      return { data: null, error: response.error };
+    if (!response.ok) {
+      console.error(`API error updating client with ID ${id}:`, response.statusText);
+      return { data: null, error: { message: 'Failed to update client' } };
     }
 
-    return { data: response.data, error: null };
+    const getResponse = await fetch(`${API_BASE_URL}/tables/clients?id=eq.${id}`);
+    const updatedData = await getResponse.json();
+    
+    return { data: updatedData[0], error: null };
   } catch (error) {
     console.error(`Unexpected error updating client with ID ${id}:`, error);
     return {
@@ -107,17 +143,23 @@ export const updateClient = async (id: string, client: any) => {
  * @param id - The UUID of the client to delete.
  * @returns A promise containing the result of the operation and any error encountered.
  */
-export const deleteClient = async (id: string) => {
+export const deleteClient = async (id: string): Promise<ApiResponse<null>> => {
   try {
     // Perform a soft delete by setting deletion_mark to true
-    const response = await supabase.from('clients').update({ deletion_mark: true }).eq('id', id);
+    const response = await fetch(`${API_BASE_URL}/tables/clients/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ deletion_mark: true }),
+    });
 
-    if (response.error) {
-      console.error(`Database error deleting client with ID ${id}:`, response.error);
-      return { data: null, error: response.error };
+    if (!response.ok) {
+      console.error(`API error deleting client with ID ${id}:`, response.statusText);
+      return { data: null, error: { message: 'Failed to delete client' } };
     }
 
-    return { data: response.data, error: null };
+    return { data: null, error: null };
   } catch (error) {
     console.error(`Unexpected error deleting client with ID ${id}:`, error);
     return {
