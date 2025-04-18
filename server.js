@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -121,6 +120,25 @@ const buildOrderClause = (orderParam) => {
   return `ORDER BY ${field} ${direction.toUpperCase()}`;
 };
 
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    res.status(200).json({
+      status: 'ok',
+      database: 'connected',
+      timestamp: result.rows[0].now
+    });
+  } catch (err) {
+    console.error('Health check error:', err);
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      error: err.message
+    });
+  }
+});
+
 // GET all tables
 app.get('/api/tables', async (req, res) => {
   try {
@@ -133,6 +151,30 @@ app.get('/api/tables', async (req, res) => {
   } catch (err) {
     console.error('Error fetching tables:', err);
     res.status(500).json({ error: 'Failed to fetch tables' });
+  }
+});
+
+// GET table structure (columns and their types)
+app.get('/api/tables/:tableName/structure', async (req, res) => {
+  try {
+    const { tableName } = req.params;
+    // Simple validation to prevent SQL injection (basic approach)
+    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) {
+      return res.status(400).json({ error: 'Invalid table name' });
+    }
+    
+    const query = `
+      SELECT column_name, data_type, is_nullable, column_default 
+      FROM information_schema.columns 
+      WHERE table_name = $1 AND table_schema = 'public'
+      ORDER BY ordinal_position
+    `;
+    
+    const result = await pool.query(query, [tableName]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching table structure:', err);
+    res.status(500).json({ error: 'Failed to fetch table structure' });
   }
 });
 
@@ -164,6 +206,47 @@ app.get('/api/tables/:tableName', async (req, res) => {
   } catch (err) {
     console.error('Error fetching data:', err);
     res.status(500).json({ error: 'Failed to fetch data' });
+  }
+});
+
+// Search across multiple columns in a table
+app.get('/api/tables/:tableName/search', async (req, res) => {
+  try {
+    const { tableName } = req.params;
+    const { term, columns } = req.query;
+    
+    // Validate inputs
+    if (!tableName.match(/^[a-zA-Z0-9_]+$/)) {
+      return res.status(400).json({ error: 'Invalid table name' });
+    }
+    
+    if (!term || !columns) {
+      return res.status(400).json({ error: 'Search term and columns are required' });
+    }
+    
+    // Split comma-separated column names and validate each
+    const columnList = columns.split(',').map(col => col.trim());
+    for (const col of columnList) {
+      if (!col.match(/^[a-zA-Z0-9_]+$/)) {
+        return res.status(400).json({ error: `Invalid column name: ${col}` });
+      }
+    }
+    
+    // Build OR conditions for each column
+    const conditions = columnList.map((col, index) => `${col}::text ILIKE $${index + 1}`);
+    const whereClause = conditions.join(' OR ');
+    
+    // Create parameterized values with wildcard search
+    const values = columnList.map(() => `%${term}%`);
+    
+    // Build complete query
+    const query = `SELECT * FROM ${tableName} WHERE ${whereClause}`;
+    
+    const result = await pool.query(query, values);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error searching data:', err);
+    res.status(500).json({ error: 'Failed to search data' });
   }
 });
 
@@ -216,6 +299,84 @@ app.post('/api/tables/:tableName', async (req, res) => {
   } catch (err) {
     console.error('Error creating record:', err);
     res.status(500).json({ error: 'Failed to create record' });
+  }
+});
+
+// Transaction endpoint for multiple operations
+app.post('/api/transaction', async (req, res) => {
+  const { operations } = req.body;
+  
+  if (!Array.isArray(operations) || operations.length === 0) {
+    return res.status(400).json({ error: 'Invalid transaction format. Expected array of operations.' });
+  }
+  
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    const results = [];
+    
+    for (const op of operations) {
+      const { type, table, data, id } = op;
+      
+      // Validate table name
+      if (!table || !table.match(/^[a-zA-Z0-9_]+$/)) {
+        throw new Error(`Invalid table name: ${table}`);
+      }
+      
+      switch (type) {
+        case 'insert':
+          if (!data || typeof data !== 'object') {
+            throw new Error('Invalid data for insert operation');
+          }
+          
+          const keys = Object.keys(data);
+          const values = Object.values(data);
+          const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
+          
+          const insertQuery = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+          const insertResult = await client.query(insertQuery, values);
+          results.push({ type: 'insert', data: insertResult.rows[0] });
+          break;
+          
+        case 'update':
+          if (!id || !data || typeof data !== 'object') {
+            throw new Error('Invalid data or ID for update operation');
+          }
+          
+          const setEntries = Object.entries(data).filter(([key]) => key !== 'id');
+          const setClause = setEntries.map(([key], index) => `${key} = $${index + 1}`).join(', ');
+          const updateValues = [...setEntries.map(([_, value]) => value), id];
+          
+          const updateQuery = `UPDATE ${table} SET ${setClause} WHERE id = $${updateValues.length} RETURNING *`;
+          const updateResult = await client.query(updateQuery, updateValues);
+          results.push({ type: 'update', data: updateResult.rows[0] });
+          break;
+          
+        case 'delete':
+          if (!id) {
+            throw new Error('Invalid ID for delete operation');
+          }
+          
+          const deleteQuery = `DELETE FROM ${table} WHERE id = $1 RETURNING id`;
+          const deleteResult = await client.query(deleteQuery, [id]);
+          results.push({ type: 'delete', table, id });
+          break;
+          
+        default:
+          throw new Error(`Unknown operation type: ${type}`);
+      }
+    }
+    
+    await client.query('COMMIT');
+    res.status(200).json({ success: true, results });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Transaction error:', err);
+    res.status(500).json({ error: 'Transaction failed', message: err.message });
+  } finally {
+    client.release();
   }
 });
 
